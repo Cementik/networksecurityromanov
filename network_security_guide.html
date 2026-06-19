@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Практическое пособие | Защита ЛВС от перехвата трафика</title>
+    <style>
+        :root {
+            --bg-primary: #0b1120;
+            --bg-secondary: #151e32;
+            --bg-card: rgba(21, 30, 50, 0.85);
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-amber: #f59e0b;
+            --accent-blue: #3b82f6;
+            --border: rgba(148, 163, 184, 0.15);
+            --code-bg: #0f172a;
+            --font-main: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            --font-mono: "Consolas", "Monaco", "Courier New", monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-main);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Layout */
+        .app {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 2rem 1.5rem;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s ease;
+        }
+
+        .logo {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo-icon {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-green));
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .logo-sub {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-item {
+            display: block;
+            padding: 0.6rem 1rem;
+            margin-bottom: 0.25rem;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: rgba(255,255,255,0.05);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--accent-blue);
+            border-left-color: var(--accent-blue);
+            font-weight: 600;
+        }
+
+        .nav-section {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            margin: 1.5rem 0 0.5rem 1rem;
+            opacity: 0.7;
+        }
+
+        /* Main Content */
+        .main {
+            margin-left: 280px;
+            flex: 1;
+            padding: 3rem 4rem;
+            max-width: 900px;
+        }
+
+        section {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+
+        section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(90deg, var(--text-primary), var(--accent-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin: 2rem 0 1rem;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        h2 .num {
+            background: var(--accent-blue);
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        h3 {
+            font-size: 1.1rem;
+            color: var(--accent-amber);
+            margin: 1.5rem 0 0.75rem;
+        }
+
+        p {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+
+        .lead {
+            font-size: 1.1rem;
+            color: var(--text-primary);
+            border-left: 4px solid var(--accent-blue);
+            padding-left: 1rem;
+            margin: 1.5rem 0;
+            background: rgba(59, 130, 246, 0.05);
+            padding: 1rem 1rem 1rem 1.5rem;
+            border-radius: 0 8px 8px 0;
+        }
+
+        /* Cards */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .card::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+        }
+
+        .card.danger::before { background: var(--accent-red); }
+        .card.safe::before { background: var(--accent-green); }
+        .card.warn::before { background: var(--accent-amber); }
+        .card.info::before { background: var(--accent-blue); }
+
+        .card-title {
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .card.danger .card-title { color: var(--accent-red); }
+        .card.safe .card-title { color: var(--accent-green); }
+        .card.warn .card-title { color: var(--accent-amber); }
+        .card.info .card-title { color: var(--accent-blue); }
+
+        .card p {
+            font-size: 0.85rem;
+            margin: 0;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 0.75rem;
+            font-family: var(--font-mono);
+        }
+
+        .tag-red { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
+        .tag-green { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+        .tag-amber { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); }
+
+        /* Code Blocks */
+        .code-block {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin: 1rem 0;
+            overflow: hidden;
+        }
+
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem 1rem;
+            background: rgba(255,255,255,0.03);
+            border-bottom: 1px solid var(--border);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .code-header span:first-child::before {
+            content: "⚡ ";
+        }
+
+        .copy-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: var(--text-secondary);
+            padding: 0.3rem 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        pre {
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: #cbd5e1;
+        }
+
+        .comment { color: #64748b; font-style: italic; }
+        .cmd { color: #7dd3fc; }
+        .arg { color: #fca5a5; }
+        .val { color: #86efac; }
+
+        /* Toggle Switch */
+        .toggle-group {
+            display: flex;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 0.3rem;
+            margin: 1.5rem 0;
+            width: fit-content;
+            border: 1px solid var(--border);
+        }
+
+        .toggle-btn {
+            padding: 0.5rem 1.2rem;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+
+        .toggle-btn.active {
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        .toggle-content {
+            display: none;
+        }
+
+        .toggle-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        /* Topology SVG */
+        .topology-wrap {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            text-align: center;
+        }
+
+        .topology-svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            font-size: 0.9rem;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .data-table th {
+            background: var(--bg-secondary);
+            padding: 0.8rem;
+            text-align: left;
+            color: var(--text-primary);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table td {
+            padding: 0.8rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .data-table tr:last-child td { border-bottom: none; }
+        .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+        /* Accordion */
+        .accordion {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .accordion-header {
+            background: var(--bg-secondary);
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .accordion-header:hover { background: rgba(255,255,255,0.05); }
+        .accordion-header::after {
+            content: "▼";
+            font-size: 0.7rem;
+            transition: transform 0.2s;
+            color: var(--text-secondary);
+        }
+
+        .accordion-header.open::after { transform: rotate(180deg); }
+
+        .accordion-body {
+            display: none;
+            padding: 1rem 1.5rem;
+            background: var(--bg-card);
+            border-top: 1px solid var(--border);
+        }
+
+        .accordion-body.open { display: block; }
+
+        /* Steps */
+        .steps {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            margin: 1.5rem 0;
+            position: relative;
+        }
+
+        .step {
+            display: flex;
+            gap: 1.5rem;
+            position: relative;
+            padding-bottom: 2rem;
+        }
+
+        .step:not(:last-child)::before {
+            content: "";
+            position: absolute;
+            left: 20px;
+            top: 40px;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, var(--accent-blue), transparent);
+        }
+
+        .step-num {
+            width: 42px; height: 42px;
+            border-radius: 50%;
+            background: var(--bg-secondary);
+            border: 2px solid var(--accent-blue);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700;
+            color: var(--accent-blue);
+            flex-shrink: 0;
+            z-index: 2;
+        }
+
+        .step-content h4 {
+            color: var(--text-primary);
+            margin-bottom: 0.3rem;
+            font-size: 1rem;
+        }
+
+        .step-content p {
+            font-size: 0.9rem;
+            margin: 0;
+        }
+
+        .step-warn {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid var(--accent-amber);
+            padding: 0.75rem 1rem;
+            border-radius: 0 8px 8px 0;
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--accent-amber);
+        }
+
+        /* Status indicators */
+        .status-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.8rem 1rem;
+            background: var(--bg-card);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            border: 1px solid var(--border);
+        }
+
+        .status-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status-dot.ok { background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
+        .status-dot.fail { background: var(--accent-red); box-shadow: 0 0 8px var(--accent-red); }
+        .status-dot.warn { background: var(--accent-amber); box-shadow: 0 0 8px var(--accent-amber); }
+
+        /* Mobile */
+        .menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem; left: 1rem;
+            z-index: 200;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 1024px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .main { margin-left: 0; padding: 4rem 1.5rem 2rem; }
+            .menu-toggle { display: block; }
+            .card-grid { grid-template-columns: 1fr; }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--bg-secondary); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--border); }
+
+        .hero-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .stat-box {
+            text-align: center;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .stat-num {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent-green);
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(59, 130, 246, 0.1));
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .highlight-box h4 {
+            color: var(--accent-green);
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰ Меню</button>
+
+    <div class="app">
+        <nav class="sidebar">
+            <div class="logo">
+                <div class="logo-icon">🛡️</div>
+                <div>Защита ЛВС</div>
+            </div>
+            <div class="logo-sub">Практическое пособие для молодых специалистов<br>Романов А.А. | 4ОБ-22Б</div>
+
+            <div class="nav-section">Общее</div>
+            <a class="nav-item active" onclick="showSection('intro')">Введение</a>
+            <a class="nav-item" onclick="showSection('threats')">Модель угроз</a>
+            <a class="nav-item" onclick="showSection('topology')">Топология сети</a>
+
+            <div class="nav-section">Механизмы защиты</div>
+            <a class="nav-item" onclick="showSection('vlan')">VLAN</a>
+            <a class="nav-item" onclick="showSection('portsec')">Port Security</a>
+            <a class="nav-item" onclick="showSection('dhcpsnoop')">DHCP Snooping</a>
+            <a class="nav-item" onclick="showSection('dai')">Dynamic ARP Inspection</a>
+            <a class="nav-item" onclick="showSection('ipsg')">IP Source Guard</a>
+
+            <div class="nav-section">Внедрение</div>
+            <a class="nav-item" onclick="showSection('order')">Порядок внедрения</a>
+            <a class="nav-item" onclick="showSection('mistakes')">Типовые ошибки</a>
+            <a class="nav-item" onclick="showSection('check')">Проверка и тесты</a>
+            <a class="nav-item" onclick="showSection('teo')">Технико-экономическое</a>
+        </nav>
+
+        <main class="main">
+            <!-- INTRO -->
+            <section id="intro" class="active">
+                <h1>Защита от перехвата трафика в локальной сети</h1>
+                <p class="lead">
+                    Пошаговое пособие по настройке механизмов защиты канального уровня 
+                    на управляемых коммутаторах (Cisco IOS / Qtech QSW-3750). 
+                    Для системных администраторов без выделенного бюджета на ИБ.
+                </p>
+
+                <div class="hero-stats">
+                    <div class="stat-box">
+                        <span class="stat-num">5</span>
+                        <div class="stat-label">Механизмов защиты</div>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-num">4</span>
+                        <div class="stat-label">Нейтрализованных атаки</div>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-num">~8K</span>
+                        <div class="stat-label">₽ Затраты на внедрение</div>
+                    </div>
+                </div>
+
+                <h2><span class="num">1</span> Почему это важно</h2>
+                <p>
+                    Локальные сети до сих пор остаются основой инфраструктуры организаций. 
+                    При всей внешней простоте, значительная часть внутреннего трафика передаётся 
+                    в открытом виде. Протоколы HTTP, ARP, DHCP не предусматривают шифрования 
+                    на канальном уровне.
+                </p>
+                <p>
+                    Перехват такого трафика технически несложен: достаточно физического доступа 
+                    к сетевой розетке и бесплатных инструментов (Wireshark, Ettercap). 
+                    ARP-spoofing, MAC-flooding, rogue DHCP — реализуются за секунды.
+                </p>
+
+                <div class="highlight-box">
+                    <h4>💡 Ключевой принцип пособия</h4>
+                    <p style="margin:0; color: var(--text-primary);">
+                        Защита канального уровня — это не вопрос миллионных бюджетов, 
+                        а результат правильной настройки имеющегося оборудования и чёткой методики, 
+                        доступной одному системному администратору.
+                    </p>
+                </div>
+
+                <h2><span class="num">2</span> Что вы найдёте в пособии</h2>
+                <div class="card-grid">
+                    <div class="card info">
+                        <div class="card-title">📋 Модель угроз</div>
+                        <p>Классификация атак на канальный уровень: ARP-spoofing, MAC-flooding, rogue DHCP, пассивный сниффинг.</p>
+                    </div>
+                    <div class="card safe">
+                        <div class="card-title">🔧 Пошаговые настройки</div>
+                        <p>Конкретные команды для VLAN, Port Security, DHCP Snooping, DAI и IP Source Guard с пояснениями.</p>
+                    </div>
+                    <div class="card warn">
+                        <div class="card-title">⚠️ Типовые ошибки</div>
+                        <p>Реальные кейсы: почему сеть падает при включении DAI до DHCP Snooping, конфликты sticky MAC.</p>
+                    </div>
+                    <div class="card info">
+                        <div class="card-title">🧪 Методика проверки</div>
+                        <p>Как убедиться, что защита работает: команды show, тестовые атаки, анализ журналов.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- THREATS -->
+            <section id="threats">
+                <h1>Модель угроз</h1>
+                <p class="lead">
+                    Все атаки имеют низкую сложность реализации, не требуют дорогого ПО 
+                    и остаются незаметными для пользователя. Коммутаторы L2 по умолчанию 
+                    не проверяют легитимность источника кадров.
+                </p>
+
+                <div class="toggle-group">
+                    <button class="toggle-btn active" onclick="toggleThreat(this, 'attack')">🔴 Векторы атак</button>
+                    <button class="toggle-btn" onclick="toggleThreat(this, 'defense')">🟢 Механизмы защиты</button>
+                </div>
+
+                <div id="threat-attack" class="toggle-content active">
+                    <div class="card-grid">
+                        <div class="card danger">
+                            <div class="card-title">ARP-spoofing</div>
+                            <p>Отравление ARP-таблиц жертвы и шлюза. Атакующий заявляет, что его MAC соответствует IP шлюза.</p>
+                            <span class="tag tag-red">Ettercap / Bettercap</span>
+                            <span class="tag tag-red">~30 сек</span>
+                        </div>
+                        <div class="card danger">
+                            <div class="card-title">MAC-flooding</div>
+                            <p>Переполнение CAM-таблицы коммутатора ложными MAC-адресами. Коммутатор переходит в режим хаба.</p>
+                            <span class="tag tag-red">macof (dsniff)</span>
+                            <span class="tag tag-red">~60 сек</span>
+                        </div>
+                        <div class="card danger">
+                            <div class="card-title">Rogue DHCP</div>
+                            <p>Подмена сетевых настроек: ложный шлюз и DNS. Весь трафик жертвы проходит через атакующего.</p>
+                            <span class="tag tag-red">dhcpd / Yersinia</span>
+                            <span class="tag tag-red">~10 сек</span>
+                        </div>
+                        <div class="card danger">
+                            <div class="card-title">Пассивный сниффинг</div>
+                            <p>Прослушивание широковещательного трафика в сегменте без активного воздействия на сеть.</p>
+                            <span class="tag tag-red">Wireshark / tcpdump</span>
+                            <span class="tag tag-red">Мгновенно</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="threat-defense" class="toggle-content">
+                    <div class="card-grid">
+                        <div class="card safe">
+                            <div class="card-title">VLAN</div>
+                            <p>Логическая сегментация сети. Ограничивает область видимости трафика до одного VLAN.</p>
+                            <span class="tag tag-green">Изоляция сегментов</span>
+                        </div>
+                        <div class="card safe">
+                            <div class="card-title">Port Security</div>
+                            <p>Контроль MAC-адресов на порту. Ограничение количества хостов и режимы реакции на нарушение.</p>
+                            <span class="tag tag-green">Блокировка MAC-flooding</span>
+                        </div>
+                        <div class="card safe">
+                            <div class="card-title">DHCP Snooping</div>
+                            <p>Фильтрация DHCP-сообщений. Доверенные порты только к легитимным серверам.</p>
+                            <span class="tag tag-green">Таблица привязок</span>
+                        </div>
+                        <div class="card safe">
+                            <div class="card-title">DAI + IP Source Guard</div>
+                            <p>Верификация ARP и IP-пакетов по таблице привязок DHCP Snooping.</p>
+                            <span class="tag tag-green">Блокировка ARP-spoofing</span>
+                        </div>
+                    </div>
+                </div>
+
+                <h3>Матрица соответствия: угроза → защита</h3>
+                <table class="data-table">
+                    <tr>
+                        <th>Угроза</th>
+                        <th>Механизм защиты</th>
+                        <th>Примечание</th>
+                    </tr>
+                    <tr>
+                        <td>ARP-spoofing</td>
+                        <td>Dynamic ARP Inspection + DHCP Snooping</td>
+                        <td>DAI требует предварительно заполненной таблицы привязок</td>
+                    </tr>
+                    <tr>
+                        <td>MAC-flooding</td>
+                        <td>Port Security</td>
+                        <td>Режим restrict для избежания отказа порта</td>
+                    </tr>
+                    <tr>
+                        <td>Rogue DHCP</td>
+                        <td>DHCP Snooping</td>
+                        <td>Trusted-порты только к легитимным серверам</td>
+                    </tr>
+                    <tr>
+                        <td>Подмена IP</td>
+                        <td>IP Source Guard</td>
+                        <td>Проверка по таблице DHCP Snooping</td>
+                    </tr>
+                    <tr>
+                        <td>Несанкционированное подключение</td>
+                        <td>Port Security (sticky MAC)</td>
+                        <td>Автоматическое запоминание первых MAC-адресов</td>
+                    </tr>
+                    <tr>
+                        <td>Перехват между сегментами</td>
+                        <td>VLAN + ACL на ядре</td>
+                        <td>Маршрутизация с фильтрацией между VLAN</td>
+                    </tr>
+                </table>
+            </section>
+
+            <!-- TOPOLOGY -->
+            <section id="topology">
+                <h1>Топология сети</h1>
+                <p class="lead">Сравнение архитектуры «до» и «после» внедрения комплекса защитных механизмов.</p>
+
+                <div class="toggle-group">
+                    <button class="toggle-btn active" onclick="toggleTopo(this, 'before')">🔴 До внедрения</button>
+                    <button class="toggle-btn" onclick="toggleTopo(this, 'after')">🟢 После внедрения</button>
+                </div>
+
+                <div id="topo-before" class="toggle-content active">
+                    <div class="topology-wrap">
+                        <p style="margin-bottom:1rem; color: var(--accent-red); font-weight: 600;">Плоская сеть: один VLAN, один широковещательный домен</p>
+                        <svg class="topology-svg" viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Switch -->
+                            <rect x="280" y="120" width="140" height="60" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+                            <text x="350" y="155" text-anchor="middle" fill="#e2e8f0" font-size="14" font-weight="bold">Коммутатор L2</text>
+                            <!-- PCs -->
+                            <rect x="80" y="220" width="100" height="50" rx="6" fill="#1e293b" stroke="#64748b" stroke-width="1"/>
+                            <text x="130" y="245" text-anchor="middle" fill="#94a3b8" font-size="12">PC1 (.15)</text>
+                            <text x="130" y="260" text-anchor="middle" fill="#ef4444" font-size="10">Жертва</text>
+
+                            <rect x="300" y="220" width="100" height="50" rx="6" fill="#1e293b" stroke="#64748b" stroke-width="1"/>
+                            <text x="350" y="245" text-anchor="middle" fill="#94a3b8" font-size="12">PC2 (.20)</text>
+                            <text x="350" y="260" text-anchor="middle" fill="#ef4444" font-size="10">Атакующий</text>
+
+                            <rect x="520" y="220" width="100" height="50" rx="6" fill="#1e293b" stroke="#64748b" stroke-width="1"/>
+                            <text x="570" y="245" text-anchor="middle" fill="#94a3b8" font-size="12">Сервер (.10)</text>
+
+                            <rect x="300" y="30" width="100" height="50" rx="6" fill="#1e293b" stroke="#64748b" stroke-width="1"/>
+                            <text x="350" y="55" text-anchor="middle" fill="#94a3b8" font-size="12">Шлюз (.1)</text>
+
+                            <!-- Lines -->
+                            <line x1="130" y1="220" x2="310" y2="180" stroke="#475569" stroke-width="2"/>
+                            <line x1="350" y1="220" x2="350" y2="180" stroke="#475569" stroke-width="2"/>
+                            <line x1="570" y1="220" x2="390" y2="180" stroke="#475569" stroke-width="2"/>
+                            <line x1="350" y1="120" x2="350" y2="80" stroke="#475569" stroke-width="2"/>
+
+                            <!-- Attack arrow -->
+                            <path d="M 350 220 Q 200 170 130 220" stroke="#ef4444" stroke-width="2" stroke-dasharray="5,5" fill="none" marker-end="url(#arrowred)"/>
+                            <text x="220" y="185" fill="#ef4444" font-size="11">Трафик виден всем</text>
+
+                            <defs>
+                                <marker id="arrowred" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                                    <path d="M0,0 L0,6 L9,3 z" fill="#ef4444"/>
+                                </marker>
+                            </defs>
+                        </svg>
+                        <div class="status-row">
+                            <div class="status-dot fail"></div>
+                            <div>
+                                <strong style="color: var(--accent-red);">Уязвимость:</strong>
+                                <span style="color: var(--text-secondary);"> Любой узел видит широковещательный трафик всего сегмента. ARP-spoofing перехватывает трафик между любыми хостами.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="topo-after" class="toggle-content">
+                    <div class="topology-wrap">
+                        <p style="margin-bottom:1rem; color: var(--accent-green); font-weight: 600;">Сегментированная сеть: 4 VLAN + комплекс защиты на портах</p>
+                        <svg class="topology-svg" viewBox="0 0 700 380" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Core -->
+                            <rect x="280" y="30" width="140" height="60" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+                            <text x="350" y="55" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="bold">Коммутатор ядра</text>
+                            <text x="350" y="72" text-anchor="middle" fill="#3b82f6" font-size="10">L3 + ACL</text>
+
+                            <!-- Access switches -->
+                            <rect x="100" y="150" width="120" height="50" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+                            <text x="160" y="172" text-anchor="middle" fill="#e2e8f0" font-size="11">Доступ 1</text>
+                            <text x="160" y="188" text-anchor="middle" fill="#10b981" font-size="9">VLAN 10, 20</text>
+
+                            <rect x="290" y="150" width="120" height="50" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+                            <text x="350" y="172" text-anchor="middle" fill="#e2e8f0" font-size="11">Доступ 2</text>
+                            <text x="350" y="188" text-anchor="middle" fill="#10b981" font-size="9">VLAN 20</text>
+
+                            <rect x="480" y="150" width="120" height="50" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+                            <text x="540" y="172" text-anchor="middle" fill="#e2e8f0" font-size="11">Серверный</text>
+                            <text x="540" y="188" text-anchor="middle" fill="#10b981" font-size="9">VLAN 30</text>
+
+                            <!-- PCs -->
+                            <rect x="60" y="260" width="90" height="40" rx="5" fill="#1e293b" stroke="#64748b" stroke-width="1"/>
+                            <text x="105" y="280" text-anchor="middle" fill="#94a3b8" font-size="11">IT (.10.x)</text>
+                            <text x="105" y="294" text-anchor="middle" fill="#10b981" font-size="9">VLAN 10</text>
+
+                            <rect x="180" y="260" width="90" height="40" rx="5" fill="#1e293b" stroke="#64748b" stroke-width="1"/>
+                            <text x="225" y="280" text-anchor="middle" fill="#94a3b8" font-size="11">Класс (.20.x)</text>
+                            <text x="225" y="294" text-anchor="middle" fill="#10b981" font-size="9">VLAN 20</text>
+
+                            <rect x="310" y="260" width="90" height="40" rx="5" fill="#1e293b" stroke="#64748b" stroke-width="1"/>
+                            <text x="355" y="280" text-anchor="middle" fill="#94a3b8" font-size="11">Гость (.20.x)</text>
+                            <text x="355" y="294" text-anchor="middle" fill="#10b981" font-size="9">VLAN 20</text>
+
+                            <rect x="500" y="260" width="90" height="40" rx="5" fill="#1e293b" stroke="#64748b" stroke-width="1"/>
+                            <text x="545" y="280" text-anchor="middle" fill="#94a3b8" font-size="11">Сервер (.30.x)</text>
+                            <text x="545" y="294" text-anchor="middle" fill="#10b981" font-size="9">VLAN 30</text>
+
+                            <!-- Lines -->
+                            <line x1="160" y1="150" x2="320" y2="90" stroke="#475569" stroke-width="2"/>
+                            <line x1="350" y1="150" x2="350" y2="90" stroke="#475569" stroke-width="2"/>
+                            <line x1="540" y1="150" x2="380" y2="90" stroke="#475569" stroke-width="2"/>
+
+                            <line x1="105" y1="260" x2="140" y2="200" stroke="#475569" stroke-width="1"/>
+                            <line x1="225" y1="260" x2="180" y2="200" stroke="#475569" stroke-width="1"/>
+                            <line x1="355" y1="260" x2="350" y2="200" stroke="#475569" stroke-width="1"/>
+                            <line x1="545" y1="260" x2="540" y2="200" stroke="#475569" stroke-width="1"/>
+
+                            <!-- Shield icons -->
+                            <text x="160" y="150" text-anchor="middle" fill="#10b981" font-size="16">🛡️</text>
+                            <text x="350" y="150" text-anchor="middle" fill="#10b981" font-size="16">🛡️</text>
+                            <text x="540" y="150" text-anchor="middle" fill="#10b981" font-size="16">🛡️</text>
+                        </svg>
+
+                        <div class="status-row">
+                            <div class="status-dot ok"></div>
+                            <div>
+                                <strong style="color: var(--accent-green);">Защита:</strong>
+                                <span style="color: var(--text-secondary);"> VLAN изолируют сегменты. Port Security + DHCP Snooping + DAI + IP Source Guard на каждом порту доступа. ACL на ядре фильтруют меж-VLAN трафик.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VLAN -->
+            <section id="vlan">
+                <h1>VLAN — сегментация сети</h1>
+                <p class="lead">
+                    Первый и обязательный шаг. Без сегментации злоумышленник видит всю сеть. 
+                    С VLAN — только свой сегмент. Это сужает поверхность атаки.
+                </p>
+
+                <h3>План адресации</h3>
+                <table class="data-table">
+                    <tr><th>VLAN</th><th>Назначение</th><th>Подсеть</th><th>Оборудование</th></tr>
+                    <tr><td>10</td><td>Административный сегмент</td><td>192.168.10.0/24</td><td>Коммутатор доступа 1, порты 1-8</td></tr>
+                    <tr><td>20</td><td>Учебные классы и аудитории</td><td>192.168.20.0/24</td><td>Коммутатор доступа 2, порты 1-20</td></tr>
+                    <tr><td>30</td><td>Серверный сегмент</td><td>192.168.30.0/24</td><td>Коммутатор ядра, порты 20-24</td></tr>
+                    <tr><td>99</td><td>Технический (native)</td><td>—</td><td>Магистральные порты</td></tr>
+                </table>
+
+                <h3>Настройка на коммутаторе доступа</h3>
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>Конфигурация VLAN и портов access</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Копировать</button>
+                    </div>
+                    <pre><span class="cmd">configure terminal</span>
+<span class="cmd">vlan</span> <span class="val">10</span>
+ <span class="cmd">name</span> <span class="val">ADMIN</span>
+<span class="cmd">vlan</span> <span class="val">20</span>
+ <span class="cmd">name</span> <span class="val">STUDENTS</span>
+<span class="cmd">vlan</span> <span class="val">30</span>
+ <span class="cmd">name</span> <span class="val">SERVERS</span>
+<span class="cmd">vlan</span> <span class="val">99</span>
+ <span class="cmd">name</span> <span class="val">NATIVE</span>
+
+<span class="comment">! Порт доступа для рабочей станции</span>
+<span class="cmd">interface</span> <span class="arg">GigabitEthernet 0/2</span>
+ <span class="cmd">switchport mode</span> <span class="val">access</span>
+ <span class="cmd">switchport access</span> <span class="arg">vlan 20</span>
+ <span class="cmd">spanning-tree portfast</span>
+
+<span class="comment">! Магистральный порт к ядру</span>
+<span class="cmd">interface</span> <span class="arg">GigabitEthernet 0/24</span>
+ <span class="cmd">switchport mode</span> <span class="val">trunk</span>
+ <span class="cmd">switchport trunk allowed</span> <span class="arg">vlan 10,20,30</span>
+ <span class="cmd">switchport trunk native</span> <span class="arg">vlan 99</span></pre>
+                </div>
+
+                <div class="highlight-box">
+                    <h4>💡 Почему /24 для всех VLAN?</h4>
+                    <p style="margin:0; color: var(--text-primary);">
+                        Унификация масок сокращает ошибки при ручной настройке статических маршрутов и ACL. 
+                        Номера VLAN кратны десяти для резерва: между 10 и 20 остаётся пространство 
+                        для VLAN 11–19 (видеонаблюдение, IP-телефония).
+                    </p>
+                </div>
+            </section>
+
+            <!-- PORT SECURITY -->
+            <section id="portsec">
+                <h1>Port Security — контроль портов</h1>
+                <p class="lead">
+                    Решает задачу контроля подключений на уровне порта. 
+                    Ограничивает количество MAC-адресов и определяет действие при нарушении.
+                </p>
+
+                <h3>Режимы нарушения</h3>
+                <div class="card-grid">
+                    <div class="card warn">
+                        <div class="card-title">shutdown</div>
+                        <p>Порт административно отключается. Требует ручного включения. Риск отказа в обслуживании.</p>
+                    </div>
+                    <div class="card safe">
+                        <div class="card-title">restrict <span style="color:var(--accent-green)">← рекомендуется</span></div>
+                        <p>Кадры отбрасываются, порт остаётся активным, счётчик ошибок растёт. Занятие не прервётся.</p>
+                    </div>
+                    <div class="card info">
+                        <div class="card-title">protect</div>
+                        <p>Тихое отбрасывание без уведомлений. Не рекомендуется — нарушение остаётся незамеченным.</p>
+                    </div>
+                </div>
+
+                <h3>Конфигурация порта доступа</h3>
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>Port Security + sticky MAC</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Копировать</button>
+                    </div>
+                    <pre><span class="cmd">interface</span> <span class="arg">GigabitEthernet 0/2</span>
+ <span class="cmd">switchport mode</span> <span class="val">access</span>
+ <span class="cmd">switchport access</span> <span class="arg">vlan 20</span>
+ <span class="cmd">switchport port-security</span>
+ <span class="cmd">switchport port-security maximum</span> <span class="val">2</span>
+ <span class="cmd">switchport port-security mac-address sticky</span>
+ <span class="cmd">switchport port-security violation</span> <span class="val">restrict</span>
+ <span class="cmd">spanning-tree portfast</span></pre>
+                </div>
+
+                <h3>Проверка состояния</h3>
+                <div class="code-block">
+                    <div class="code-header"><span>Команды диагностики</span></div>
+                    <pre><span class="cmd">show port-security</span>
+<span class="cmd">show port-security interface</span> <span class="arg">gi0/2</span>
+<span class="cmd">show port-security address</span></pre>
+                </div>
+
+                <div class="highlight-box">
+                    <h4>⚠️ Важно: лимит = 2</h4>
+                    <p style="margin:0; color: var(--text-primary);">
+                        Один MAC для ПК, второй — для подключаемого IP-телефона или точки доступа. 
+                        Для ноутбуков с док-станциями (проводной + Wi-Fi) может потребоваться лимит 3.
+                    </p>
+                </div>
+            </section>
+
+            <!-- DHCP SNOOPING -->
+            <section id="dhcpsnoop">
+                <h1>DHCP Snooping — защита DHCP</h1>
+                <p class="lead">
+                    Фильтрация DHCP-сообщений на коммутаторе доступа. 
+                    Строит таблицу привязок (binding database) — фундамент для DAI и IP Source Guard.
+                </p>
+
+                <div class="topology-wrap" style="padding:1.5rem;">
+                    <svg viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="50" y="70" width="100" height="50" rx="6" fill="#1e293b" stroke="#ef4444" stroke-width="1"/>
+                        <text x="100" y="98" text-anchor="middle" fill="#ef4444" font-size="11">Rogue DHCP</text>
+                        <text x="100" y="112" text-anchor="middle" fill="#94a3b8" font-size="9">untrusted</text>
+
+                        <rect x="250" y="60" width="100" height="70" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+                        <text x="300" y="85" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="bold">Коммутатор</text>
+                        <text x="300" y="102" text-anchor="middle" fill="#10b981" font-size="10">DHCP Snooping</text>
+                        <text x="300" y="118" text-anchor="middle" fill="#94a3b8" font-size="9">отбрасывает DHCPOFFER</text>
+
+                        <rect x="450" y="70" width="100" height="50" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+                        <text x="500" y="98" text-anchor="middle" fill="#3b82f6" font-size="11">Легитимный</text>
+                        <text x="500" y="112" text-anchor="middle" fill="#94a3b8" font-size="9">trusted</text>
+
+                        <line x1="150" y1="95" x2="250" y2="95" stroke="#ef4444" stroke-width="2" stroke-dasharray="4,3"/>
+                        <line x1="350" y1="95" x2="450" y2="95" stroke="#3b82f6" stroke-width="2"/>
+
+                        <text x="200" y="85" fill="#ef4444" font-size="10">❌ BLOCK</text>
+                        <text x="400" y="85" fill="#3b82f6" font-size="10">✅ PASS</text>
+                    </svg>
+                </div>
+
+                <h3>Настройка</h3>
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>Глобальная конфигурация и порты</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Копировать</button>
+                    </div>
+                    <pre><span class="cmd">ip dhcp snooping</span>
+<span class="cmd">ip dhcp snooping vlan</span> <span class="val">10,20,30</span>
+
+<span class="comment">! Порт к легитимному DHCP-серверу (trusted)</span>
+<span class="cmd">interface</span> <span class="arg">GigabitEthernet 0/1</span>
+ <span class="cmd">ip dhcp snooping trust</span>
+
+<span class="comment">! Пользовательский порт (untrusted) + rate limit</span>
+<span class="cmd">interface</span> <span class="arg">GigabitEthernet 0/2</span>
+ <span class="cmd">ip dhcp snooping limit rate</span> <span class="val">15</span></pre>
+                </div>
+
+                <h3>Проверка таблицы привязок</h3>
+                <div class="code-block">
+                    <div class="code-header"><span>Команды проверки</span></div>
+                    <pre><span class="cmd">show ip dhcp snooping</span>
+<span class="cmd">show ip dhcp snooping binding</span></pre>
+                </div>
+
+                <div class="highlight-box">
+                    <h4>🔗 Критическая зависимость</h4>
+                    <p style="margin:0; color: var(--text-primary);">
+                        Без DHCP Snooping не работают DAI и IP Source Guard — им нечем сверяться. 
+                        Таблица привязок должна сформироваться до включения последующих механизмов.
+                    </p>
+                </div>
+            </section>
+
+            <!-- DAI -->
+            <section id="dai">
+                <h1>Dynamic ARP Inspection</h1>
+                <p class="lead">
+                    Проверяет подлинность ARP-пакетов на основе таблицы привязок DHCP Snooping. 
+                    Эффективно нейтрализует ARP-spoofing.
+                </p>
+
+                <h3>Принцип работы</h3>
+                <p>
+                    Коммутатор сравнивает IP-адрес и MAC-адрес в ARP-запросе/ответе с записями 
+                    binding database. При несоответствии — пакет отбрасывается, событие фиксируется в журнале.
+                </p>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>Настройка DAI</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Копировать</button>
+                    </div>
+                    <pre><span class="cmd">ip arp inspection vlan</span> <span class="val">10,20,30</span>
+
+<span class="comment">! Доверенные порты (аплинки к ядру, серверные порты)</span>
+<span class="cmd">interface</span> <span class="arg">GigabitEthernet 0/1</span>
+ <span class="cmd">ip arp inspection trust</span>
+
+<span class="comment">! Настройка логирования (на реальном Qtech QSW-3750)</span>
+<span class="cmd">ip arp inspection log-buffer logs</span> <span class="val">256</span> <span class="cmd">interval</span> <span class="val">5</span></pre>
+                </div>
+
+                <h3>Статические ARP для критичных узлов</h3>
+                <p>Для шлюза и серверов в VLAN 30 — избирательная ручная привязка:</p>
+                <div class="code-block">
+                    <div class="code-header"><span>Статические записи на ядре</span></div>
+                    <pre><span class="cmd">arp</span> <span class="val">192.168.30.1</span> <span class="val">001a.2b3c.4d5e</span> <span class="cmd">arpa</span></pre>
+                </div>
+
+                <div class="highlight-box">
+                    <h4>⚠️ Главная ошибка</h4>
+                    <p style="margin:0; color: var(--text-primary);">
+                        <strong>Никогда не включайте DAI до DHCP Snooping.</strong> 
+                        Если таблица привязок пуста, коммутатор отбросит ВСЕ ARP-пакеты, включая легитимные. 
+                        Сеть упадёт через 30 секунд. Сначала DHCP Snooping, дождитесь аренды адресов, потом DAI.
+                    </p>
+                </div>
+            </section>
+
+            <!-- IP SOURCE GUARD -->
+            <section id="ipsg">
+                <h1>IP Source Guard</h1>
+                <p class="lead">
+                    Проверяет IP-адрес источника во всех IP-пакетах, передаваемых с порта доступа. 
+                    Отбрасывает трафик с поддельных IP-адресов.
+                </p>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>Настройка на порту доступа</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Копировать</button>
+                    </div>
+                    <pre><span class="cmd">interface</span> <span class="arg">GigabitEthernet 0/2</span>
+ <span class="cmd">ip verify source port-security</span></pre>
+                </div>
+
+                <h3>Статические привязки для серверов</h3>
+                <p>
+                    IP Source Guard опирается на таблицу DHCP Snooping. Хосты со статическими IP 
+                    необходимо внести вручную:
+                </p>
+                <div class="code-block">
+                    <div class="code-header"><span>Статическая привязка</span></div>
+                    <pre><span class="cmd">ip source binding</span> <span class="val">001a.2b3c.4d5e</span> <span class="cmd">vlan</span> <span class="val">30</span> <span class="val">192.168.30.10</span> <span class="cmd">interface</span> <span class="arg">Gi0/24</span></pre>
+                </div>
+
+                <div class="highlight-box">
+                    <h4>📝 Примечание</h4>
+                    <p style="margin:0; color: var(--text-primary);">
+                        В сети со смешанной адресацией (DHCP + статика) требуется предварительная инвентаризация. 
+                        Для пяти серверов — не сложно. Для сотни хостов — составьте белый список заранее.
+                    </p>
+                </div>
+            </section>
+
+            <!-- ORDER -->
+            <section id="order">
+                <h1>Порядок внедрения</h1>
+                <p class="lead">
+                    Порядок не произволен — он продиктован технологическими зависимостями. 
+                    Нарушение последовательности обречено на неработоспособность защиты или отказ сети.
+                </p>
+
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-num">1</div>
+                        <div class="step-content">
+                            <h4>VLAN — сегментация сети</h4>
+                            <p>Создание VLAN, назначение портов access/trunk. Не требует других служб, но создаёт границы.</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">2</div>
+                        <div class="step-content">
+                            <h4>Port Security — контроль MAC</h4>
+                            <p>Ограничение MAC-адресов на портах доступа. Режим restrict, sticky MAC.</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">3</div>
+                        <div class="step-content">
+                            <h4>DHCP Snooping — таблица привязок</h4>
+                            <p>Глобальное включение, настройка trusted-портов к серверам. Ожидание формирования binding database.</p>
+                            <div class="step-warn">
+                                ⏳ Дождитесь хотя бы одной аренды адресов в каждом VLAN перед следующим шагом!
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">4</div>
+                        <div class="step-content">
+                            <h4>Dynamic ARP Inspection — верификация ARP</h4>
+                            <p>Проверка ARP-пакетов по таблице DHCP Snooping. Настройка trusted-портов.</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">5</div>
+                        <div class="step-content">
+                            <h4>IP Source Guard — контроль IP</h4>
+                            <p>Проверка IP-адреса источника. Ручные привязки для статических хостов.</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">6</div>
+                        <div class="step-content">
+                            <h4>Организационные меры</h4>
+                            <p>Таблица соответствия порт—MAC—рабочее место, аудит конфигураций, физическая охрана шкафов.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- MISTAKES -->
+            <section id="mistakes">
+                <h1>Типовые ошибки</h1>
+                <p class="lead">Реальные кейсы из практики. Ошибки, которые совершают даже опытные администраторы.</p>
+
+                <div class="accordion">
+                    <div class="accordion-header" onclick="toggleAcc(this)">
+                        <span>DAI до DHCP Snooping: сеть падает через 30 секунд</span>
+                    </div>
+                    <div class="accordion-body">
+                        <p><strong>Симптом:</strong> после включения DAI пропадает связь со всеми хостами в VLAN.</p>
+                        <p><strong>Причина:</strong> таблица привязок пуста, DAI нечем сверять ARP-пакеты — отбрасывает все.</p>
+                        <p><strong>Решение:</strong> отключить DAI, настроить DHCP Snooping, дождаться аренды адресов, включить DAI снова.</p>
+                    </div>
+                </div>
+
+                <div class="accordion">
+                    <div class="accordion-header" onclick="toggleAcc(this)">
+                        <span>Sticky MAC и смена VLAN: хост не получает адрес</span>
+                    </div>
+                    <div class="accordion-body">
+                        <p><strong>Симптом:</strong> после переноса ПК в другую аудиторию (другой VLAN) он не выходит в сеть.</p>
+                        <p><strong>Причина:</strong> запись sticky MAC осталась в старой VLAN. Коммутатор видит конфликт.</p>
+                        <p><strong>Решение:</strong> очистить привязку вручную: <code>no switchport port-security mac-address sticky &lt;mac&gt;</code>, либо перенастроить порт.</p>
+                    </div>
+                </div>
+
+                <div class="accordion">
+                    <div class="accordion-header" onclick="toggleAcc(this)">
+                        <span>Port Security в shutdown: занятие прервано из-за одного кабеля</span>
+                    </div>
+                    <div class="accordion-body">
+                        <p><strong>Симптом:</strong> порт отключился, аудитория без сети.</p>
+                        <p><strong>Причина:</strong> режим violation shutdown требует ручного <code>shutdown</code> + <code>no shutdown</code>.</p>
+                        <p><strong>Решение:</strong> использовать режим restrict в учебных аудиториях. Настроить SNMP-трапы или syslog для мониторинга.</p>
+                    </div>
+                </div>
+
+                <div class="accordion">
+                    <div class="accordion-header" onclick="toggleAcc(this)">
+                        <span>IP Source Guard блокирует сервер со статическим IP</span>
+                    </div>
+                    <div class="accordion-body">
+                        <p><strong>Симптом:</strong> сервер в VLAN 30 недоступен после включения IP Source Guard.</p>
+                        <p><strong>Причина:</strong> хост не получал адрес по DHCP — записи в binding database нет.</p>
+                        <p><strong>Решение:</strong> добавить статическую привязку командой <code>ip source binding</code> или отключить IP Source Guard на серверных портах.</p>
+                    </div>
+                </div>
+
+                <div class="accordion">
+                    <div class="accordion-header" onclick="toggleAcc(this)">
+                        <span>Потеря таблицы привязок при увольнении администратора</span>
+                    </div>
+                    <div class="accordion-body">
+                        <p><strong>Симптом:</strong> новый админ боится включить Port Security, не зная легитимных MAC-адресов.</p>
+                        <p><strong>Причина:</strong> отсутствие документации и инвентаризации.</p>
+                        <p><strong>Решение:</strong> вести таблицу порт—MAC—рабочее место в любом доступном формате (Excel, wiki, git). Регулярный бэкап конфигураций.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- CHECK -->
+            <section id="check">
+                <h1>Проверка и тестирование</h1>
+                <p class="lead">Как убедиться, что защита работает. Методика «до» и «после».</p>
+
+                <h3>Результаты сравнительного тестирования</h3>
+                <table class="data-table">
+                    <tr>
+                        <th>Тип атаки</th>
+                        <th>Результат «до»</th>
+                        <th>Результат «после»</th>
+                        <th>Механизм</th>
+                    </tr>
+                    <tr>
+                        <td>Пассивный сниффинг</td>
+                        <td style="color:var(--accent-red)">Виден весь трафик VLAN</td>
+                        <td style="color:var(--accent-green)">Виден только свой трафик</td>
+                        <td>VLAN</td>
+                    </tr>
+                    <tr>
+                        <td>ARP-spoofing</td>
+                        <td style="color:var(--accent-red)">Перехват HTTP за 30 сек</td>
+                        <td style="color:var(--accent-green)">Поддельные ARP отброшены</td>
+                        <td>DAI</td>
+                    </tr>
+                    <tr>
+                        <td>MAC-flooding</td>
+                        <td style="color:var(--accent-red)">Переполнение CAM за 60 сек</td>
+                        <td style="color:var(--accent-green)">Кадры отброшены</td>
+                        <td>Port Security</td>
+                    </tr>
+                    <tr>
+                        <td>Rogue DHCP</td>
+                        <td style="color:var(--accent-red)">Подмена шлюза за 10 сек</td>
+                        <td style="color:var(--accent-green)">DHCPOFFER отброшен</td>
+                        <td>DHCP Snooping</td>
+                    </tr>
+                </table>
+
+                <h3>Контрольный чек-лист администратора</h3>
+                <div class="status-row">
+                    <div class="status-dot ok"></div>
+                    <div><code>show vlan brief</code> — VLAN созданы и назначены портам</div>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot ok"></div>
+                    <div><code>show port-security</code> — Port Security активен, sticky MAC записаны</div>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot ok"></div>
+                    <div><code>show ip dhcp snooping binding</code> — таблица привязок заполнена</div>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot ok"></div>
+                    <div><code>show ip arp inspection statistics</code> — DAI фиксирует отброшенные пакеты</div>
+                </div>
+                <div class="status-row">
+                    <div class="status-dot ok"></div>
+                    <div><code>show ip verify source</code> — IP Source Guard активен на портах доступа</div>
+                </div>
+
+                <h3>Инструменты для тестовых атак</h3>
+                <div class="card-grid">
+                    <div class="card info">
+                        <div class="card-title">Wireshark</div>
+                        <p>Пассивный анализ трафика. Проверка видимости сегмента до и после VLAN.</p>
+                    </div>
+                    <div class="card info">
+                        <div class="card-title">Ettercap</div>
+                        <p>ARP-spoofing и перехват сессий. Проверка эффективности DAI.</p>
+                    </div>
+                    <div class="card info">
+                        <div class="card-title">macof (dsniff)</div>
+                        <p>Генерация ложных MAC-адресов. Проверка Port Security.</p>
+                    </div>
+                    <div class="card info">
+                        <div class="card-title">dhcpd (Kali)</div>
+                        <p>Подъём rogue DHCP-сервера. Проверка DHCP Snooping.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TEO -->
+            <section id="teo">
+                <h1>Технико-экономическое обоснование</h1>
+                <p class="lead">
+                    Внедрение комплекса практически бесплатно при наличии управляемых коммутаторов. 
+                    Сравнение затрат со стоимостью инцидента.
+                </p>
+
+                <div class="card-grid" style="grid-template-columns: 1fr 1fr;">
+                    <div class="card" style="border: 1px solid var(--accent-green);">
+                        <div class="card-title" style="color:var(--accent-green); font-size:1.2rem;">💰 Затраты на внедрение</div>
+                        <div style="font-size:2.5rem; font-weight:700; color:var(--accent-green); margin:1rem 0;">~8 000 ₽</div>
+                        <p>Только рабочее время администратора (16 часов). Никакого нового оборудования или лицензий.</p>
+                        <div style="margin-top:1rem; font-size:0.85rem; color:var(--text-secondary);">
+                            • Проектирование VLAN — 4 ч<br>
+                            • Настройка доступа — 6 ч<br>
+                            • Настройка ядра — 2 ч<br>
+                            • Тестирование — 4 ч
+                        </div>
+                    </div>
+                    <div class="card" style="border: 1px solid var(--accent-red);">
+                        <div class="card-title" style="color:var(--accent-red); font-size:1.2rem;">⚠️ Стоимость инцидента</div>
+                        <div style="font-size:2.5rem; font-weight:700; color:var(--accent-red); margin:1rem 0;">от 100 000 ₽</div>
+                        <p>Утечка персональных данных: штрафы по 152-ФЗ, простои, репутационные потери.</p>
+                        <div style="margin-top:1rem; font-size:0.85rem; color:var(--text-secondary);">
+                            • Ст. 13.11 КоАП РФ<br>
+                            • Штрафы до 500 000 ₽<br>
+                            • Расходы на расследование<br>
+                            • Потеря доверия клиентов
+                        </div>
+                    </div>
+                </div>
+
+                <h3>Альтернативы и их стоимость</h3>
+                <table class="data-table">
+                    <tr><th>Решение</th><th>Стоимость</th><th>Сложность</th><th>Для каких сетей</th></tr>
+                    <tr style="background:rgba(16,185,129,0.05)">
+                        <td><strong>Предложенный комплекс</strong></td>
+                        <td>0 ₽ (встроенный функционал)</td>
+                        <td>Средняя</td>
+                        <td>Малые и средние, учебные</td>
+                    </tr>
+                    <tr>
+                        <td>Cisco ISE / NAC</td>
+                        <td>500 000+ ₽ (лицензии + сервер)</td>
+                        <td>Высокая</td>
+                        <td>Крупные корпорации</td>
+                    </tr>
+                    <tr>
+                        <td>SD-Access / Zero Trust</td>
+                        <td>1 000 000+ ₽</td>
+                        <td>Очень высокая</td>
+                        <td>Enterprise</td>
+                    </tr>
+                </table>
+
+                <div class="highlight-box">
+                    <h4>📊 Вывод</h4>
+                    <p style="margin:0; color: var(--text-primary);">
+                        Для сети учебного заведения или небольшой организации корпоративные системы NAC избыточны. 
+                        Предложенный комплекс обеспечивает защиту канального уровня без капитальных вложений 
+                        и может быть реализован администратором уровня CCNA.
+                    </p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // Navigation
+        function showSection(id) {
+            document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            event.target.classList.add('active');
+            // Close mobile menu
+            document.querySelector('.sidebar').classList.remove('open');
+            window.scrollTo(0,0);
+        }
+
+        // Copy code
+        function copyCode(btn) {
+            const pre = btn.closest('.code-block').querySelector('pre');
+            const text = pre.innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                const old = btn.innerText;
+                btn.innerText = 'Скопировано!';
+                btn.style.background = 'var(--accent-green)';
+                setTimeout(() => {
+                    btn.innerText = old;
+                    btn.style.background = '';
+                }, 1500);
+            });
+        }
+
+        // Toggle threat view
+        function toggleThreat(btn, type) {
+            btn.parentElement.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('threat-attack').classList.toggle('active', type === 'attack');
+            document.getElementById('threat-defense').classList.toggle('active', type === 'defense');
+        }
+
+        // Toggle topology
+        function toggleTopo(btn, type) {
+            btn.parentElement.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('topo-before').classList.toggle('active', type === 'before');
+            document.getElementById('topo-after').classList.toggle('active', type === 'after');
+        }
+
+        // Accordion
+        function toggleAcc(header) {
+            header.classList.toggle('open');
+            header.nextElementSibling.classList.toggle('open');
+        }
+    </script>
+</body>
+</html>
